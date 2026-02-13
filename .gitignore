@@ -3,5 +3,9 @@
 .vscode/c_cpp_properties.json
 .vscode/launch.json
 .vscode/ipch
-components/apriltag
-components/esp32-camera
+components/apriltag/*
+components/esp32-camera/*
+!components/apriltag/CMakeLists.txt
+!components/esp32-camera/stub
+managed_components/
+dependencies.lock

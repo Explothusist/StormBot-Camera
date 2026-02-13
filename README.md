@@ -20,6 +20,6 @@ STORM competition website: https://storm.soonerrobotics.org/about
 
 This codebase was written using the Esp32-Camera and AprilTag3 libraries.
 
-To obtain the AprilTag3 library, go to https://github.com/AprilRobotics/apriltag/releases/tag/v3.4.5 and download the source code in either format. Uncompress the folder and copy the apriltag-3.4.5 from INSIDE the apriltag-3.4.5 into the component/ directory of the repository. IMPORTANT: Make sure there is NOT a double nested folder (apriltag-3.4.5/apriltag-3.4.5) in the component/ directory. Now, rename the component/ "apriltag-3.4.5" folder to "apriltag".
+To obtain the AprilTag3 library, go to https://github.com/AprilRobotics/apriltag/releases/tag/v3.4.5 and download the source code in either format. Uncompress the folder and copy the contents EXCEPT FOR `CMakeLists.txt` into `components/apriltag/`. There should already be a modified `CMakeLists.txt` file in `components/apriltag/`.
 
-To obtain the Esp32-Camera library ....
+To obtain the Esp32-Camera library, go to https://github.com/espressif/esp32-camera/releases/tag/v2.1.4 and download the source code in either format. Uncompress the folder and copy the contents INCLUDING `CMakeLists.txt` into `components/esp32-camera/`. There is NOT already a modified `CMakeLists.txt` file in `components/esp32-camera/`.

@@ -7,9 +7,9 @@
 // #include "esp32-camera-2.1.4/driver/include/esp_camera.h"
 #include "esp_camera.h"
 
-#include "apriltag-3.4.5/apriltag.h"
+#include "apriltag.h"
 // #include "apriltag.h"
-#include "apriltag-3.4.5/tag36h11.h" // Import AprilTag Family Here
+#include "tag36h11.h" // Import AprilTag Family Here
 // #include "tag36h11.h" // Import AprilTag Family Here
 
 #include "constants.h"
@@ -125,11 +125,13 @@ void camera_loop(void* arg) {
         // }else {
             m_detections = apriltag_detector_detect(m_detector, &image);
 
+            ESP_LOGI("Targetting", "Object Frame");
             for (int i = 0; i < zarray_size(m_detections); i++) {
                 apriltag_detection_t* detect;
                 zarray_get(m_detections, i, &detect);
 
                 // Put detection in format to send
+                ESP_LOGI("Targetting", "Object Seen: center: x: %d, y: %d", detect->c[0], detect->c[1]);
             }
 
             // Send over TTL
@@ -153,14 +155,19 @@ void camera_loop(void* arg) {
 };
 
 void app_main(void) {
-    ESP_ERROR_CHECK(esp_camera_init(&config));
-    
-    TaskHandle_t m_camera_loop_handler;
+    ESP_LOGI("Setup", "Internal RAM free: %d\n", heap_caps_get_free_size(MALLOC_CAP_INTERNAL));
+    ESP_LOGI("Setup", "PSRAM free: %d\n", heap_caps_get_free_size(MALLOC_CAP_SPIRAM));
+    if (heap_caps_get_free_size(MALLOC_CAP_SPIRAM) == 0) {
+        ESP_LOGE("Setup", "PSRAM Not Initialized");
+    }else {
+        ESP_ERROR_CHECK(esp_camera_init(&config));
+        
+        TaskHandle_t m_camera_loop_handler;
 
-    BaseType_t result = xTaskCreate(camera_loop, "camera_loop", 12288, NULL, 5, &m_camera_loop_handler);
+        BaseType_t result = xTaskCreate(camera_loop, "camera_loop", 12288, NULL, 5, &m_camera_loop_handler);
 
-    if (result != pdPASS) {
-        ESP_LOGE("Setup", "Task Creation Failed");
+        if (result != pdPASS) {
+            ESP_LOGE("Setup", "Task Creation Failed");
+        }
     }
-
 };

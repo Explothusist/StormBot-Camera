@@ -9,3 +9,4 @@ components/esp32-camera/*
 !components/esp32-camera/stub
 managed_components/
 dependencies.lock
+build/

@@ -1,6 +1,7 @@
-
 // Import ESPIDF features
 #include "esp_log.h"
+#include "esp_psram.h"
+#include "esp_task_wdt.h"
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
 
@@ -12,6 +13,7 @@
 #include "tag36h11.h" // Import AprilTag Family Here
 // #include "tag36h11.h" // Import AprilTag Family Here
 
+#include <stdio.h>
 #include "constants.h"
 
 
@@ -61,7 +63,7 @@ camera_config_t config = {
     // .frame_size     = FRAMESIZE_VGA,      // 640x480
 
     .jpeg_quality   = 12,
-    .fb_count       = 1,
+    .fb_count       = 2,
     .fb_location    = CAMERA_FB_IN_PSRAM,
     .grab_mode      = CAMERA_GRAB_WHEN_EMPTY
 };
@@ -88,7 +90,8 @@ void camera_loop(void* arg) {
     zarray_t* m_detections;
 
     // Detector Settings
-    m_detector->quad_decimate = 2.0; // 2.0 (4x) or 3.0 (9x) // Halves the resolution for processing, but restores it for coordinates
+    // m_detector->quad_decimate = 2.0; // 2.0 (4x) or 3.0 (9x) // Halves the resolution for processing, but restores it for coordinates
+    m_detector->quad_decimate = 1.0; // 2.0 (4x) or 3.0 (9x) // Halves the resolution for processing, but restores it for coordinates
     m_detector->quad_sigma = 0.0; // Sets applied Gaussian blur to 0, which helps with noise but costs CPU
     m_detector->nthreads = 1; // ESP32 is technically dual-core but AprilTag threading won’t help much (context switching, memory overhead) helps more when you can run 4-8 threads
     m_detector->refine_edges = 0; // Removes extra step to get sub-pixel accuracy on corners, used for pose estimation (we just don't need the accuracy and it costs CPU)
@@ -115,17 +118,21 @@ void camera_loop(void* arg) {
         if (!frame_buffer) {
             ESP_LOGE("Camera", "Capture Failed");
         }else {
+            ESP_LOGI("Camera", "Frame Format: %d, Dimensions: %d x %d, Length: %d", frame_buffer->format, frame_buffer->width, frame_buffer->height, frame_buffer->len);
+
             // Copy the Y component of YUV224 to get a greyscale image
             for (int i = 0; i < pixel_count; i++) {
                 greyscale[i] = frame_buffer->buf[i*2]; // Skip UV
             }
 
+            esp_camera_fb_return(frame_buffer); // Done with actual image now
+
         // if (image == NULL) {
-        //     fprintf(stderr, "Image could not be created.\n");
+        //     fprintf(stderr, "Image could not be created.");
         // }else {
             m_detections = apriltag_detector_detect(m_detector, &image);
 
-            ESP_LOGI("Targetting", "Object Frame");
+            ESP_LOGI("Targetting", "Object Frame: %d objects seen", zarray_size(m_detections));
             for (int i = 0; i < zarray_size(m_detections); i++) {
                 apriltag_detection_t* detect;
                 zarray_get(m_detections, i, &detect);
@@ -140,13 +147,15 @@ void camera_loop(void* arg) {
         // }
         // image_u8_destroy(image);
         // image = NULL;
-        
-            esp_camera_fb_return(frame_buffer);
         }
         
+        ESP_LOGI("Heap", "Internal: %d, PSRAM: %d", heap_caps_get_free_size(MALLOC_CAP_INTERNAL), heap_caps_get_free_size(MALLOC_CAP_SPIRAM));
 
         // Actually, just let it run at whatever speed
-        // vTaskDelayUntil(&last, pdMS_TO_TICKS(constants::kMS_PER_FRAME));
+        // Actually, try for 10 FPS, no need to push higher
+        vTaskDelayUntil(&last, pdMS_TO_TICKS(MS_PER_FRAME));
+        vTaskDelay(pdMS_TO_TICKS(MS_EXTRA_DELAY)); // Wait 1 ms to make sure a wait happens
+        // esp_task_wdt_reset(); // reset watchdog so it knows we are not stuck (the above line should do this, but is not working)
     }
     apriltag_detector_destroy(m_detector); // These should never run?
     tag36h11_destroy(m_at_family);
@@ -155,16 +164,38 @@ void camera_loop(void* arg) {
 };
 
 void app_main(void) {
-    ESP_LOGI("Setup", "Internal RAM free: %d\n", heap_caps_get_free_size(MALLOC_CAP_INTERNAL));
-    ESP_LOGI("Setup", "PSRAM free: %d\n", heap_caps_get_free_size(MALLOC_CAP_SPIRAM));
+    vTaskDelay(pdMS_TO_TICKS(2000));  // 2 second debug delay
+
+    // esp_log_level_set("*", ESP_LOG_VERBOSE);
+
+    ESP_LOGI("Setup", "Staring Now");
+
+    ESP_LOGI("Setup", "Internal RAM free: %d", heap_caps_get_free_size(MALLOC_CAP_INTERNAL));
+    ESP_LOGI("Setup", "PSRAM free: %d", heap_caps_get_free_size(MALLOC_CAP_SPIRAM));
+
+    
+    // while (1) {
+    //     ESP_LOGI("Setup", "Internal RAM free: %d", heap_caps_get_free_size(MALLOC_CAP_INTERNAL));
+    //     ESP_LOGI("Setup", "PSRAM free: %d", heap_caps_get_free_size(MALLOC_CAP_SPIRAM));
+
+    //     ESP_LOGI("Loop", "HELLO from FreeRTOS task");
+    //     vTaskDelay(pdMS_TO_TICKS(1000));
+    // }
+
     if (heap_caps_get_free_size(MALLOC_CAP_SPIRAM) == 0) {
         ESP_LOGE("Setup", "PSRAM Not Initialized");
     }else {
-        ESP_ERROR_CHECK(esp_camera_init(&config));
+            esp_err_t err = esp_camera_init(&config);
+            if (err != ESP_OK) {
+                ESP_LOGE("Setup", "Camera init failed: %s", esp_err_to_name(err));
+                return; // Or handle gracefully
+            } else {
+                ESP_LOGI("Setup", "Camera initialized successfully");
+            }
         
         TaskHandle_t m_camera_loop_handler;
 
-        BaseType_t result = xTaskCreate(camera_loop, "camera_loop", 12288, NULL, 5, &m_camera_loop_handler);
+        BaseType_t result = xTaskCreatePinnedToCore(camera_loop, "camera_loop", 12288, NULL, 5, &m_camera_loop_handler, 0); // On CPU0
 
         if (result != pdPASS) {
             ESP_LOGE("Setup", "Task Creation Failed");

@@ -8,12 +8,14 @@
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
 
+#ifdef CAMERA_STREAMING
 #include "esp_wifi.h"
 #include "esp_netif.h"
 #include "esp_event.h"
 #include "esp_system.h"
 #include "nvs_flash.h"
 #include "esp_http_server.h"
+#endif
 
 // #include "esp32-camera-2.1.4/driver/include/esp_camera.h"
 #include "esp_camera.h"
@@ -29,8 +31,13 @@
 #include "constants.h"
 
 // ------------------------------ Change Wifi Credentials Here ------------------------------
-#define WIFI_SSID         "WifiName"
-#define WIFI_PASS         "WifiPass"
+#ifdef CAMERA_STREAMING
+#define WIFI_SSID         "STA Guest"
+#define WIFI_PASS         "STAGuest1!"
+#endif
+
+// Doesn't work on UARK Wi-Fi
+// Doesn't work on UARK Guest Wi-Fi
 
 
 #define PWDN_GPIO_NUM     -1
@@ -51,7 +58,7 @@
 #define HREF_GPIO_NUM     47
 #define PCLK_GPIO_NUM     13
 
-camera_config_t config = {
+camera_config_t config = { // The camera is an OV3660
     .pin_pwdn       = PWDN_GPIO_NUM,
     .pin_reset      = RESET_GPIO_NUM,
     .pin_xclk       = XCLK_GPIO_NUM,
@@ -70,7 +77,8 @@ camera_config_t config = {
     .pin_href       = HREF_GPIO_NUM,
     .pin_pclk       = PCLK_GPIO_NUM,
 
-    .xclk_freq_hz   = 20000000,
+    // .xclk_freq_hz   = 20000000,
+    .xclk_freq_hz   = 16000000,
     .ledc_timer     = LEDC_TIMER_0,
     .ledc_channel   = LEDC_CHANNEL_0,
 
@@ -88,12 +96,14 @@ camera_config_t config = {
 #endif
 #ifdef CAMERA_STREAMING
     .pixel_format   = PIXFORMAT_JPEG,
-    // .frame_size     = FRAMESIZE_QVGA,      // 320x240
-    .frame_size     = FRAMESIZE_VGA,      // 640x480
+    .frame_size     = FRAMESIZE_QVGA,      // 320x240
+    // .frame_size     = FRAMESIZE_VGA,      // 640x480
     // .frame_size     = FRAMESIZE_HD,       // 1280x720
 
-    .jpeg_quality   = 15,
-    .fb_count       = 2,
+    // .jpeg_quality   = 15,
+    .jpeg_quality   = 20,
+    // .fb_count       = 2,
+    .fb_count       = 1,
     .fb_location    = CAMERA_FB_IN_PSRAM,
     // .grab_mode      = CAMERA_GRAB_WHEN_EMPTY
     .grab_mode      = CAMERA_GRAB_LATEST
@@ -139,6 +149,21 @@ void camera_init(void) {
     m_sensor->set_vflip(m_sensor, 1);          // 0 = disable , 1 = enable
     m_sensor->set_dcw(m_sensor, 1);            // 0 = disable , 1 = enable
     ESP_LOGI("Setup", "Camera 5");
+
+    sensor_t* camera = esp_camera_sensor_get();
+    if (!camera) {
+        ESP_LOGE("Camera", "Camera Not Detected");
+    }else {
+        ESP_LOGI("Camera", "Camera Setup Complete");
+    }
+    
+    camera_fb_t *test = esp_camera_fb_get();
+    if (!test) {
+        ESP_LOGE("Camera", "Camera capture failed immediately");
+    } else {
+        ESP_LOGI("Camera", "Camera test capture OK, size=%d", test->len);
+    }
+    esp_camera_fb_return(test);
 };
 
 #ifdef CAMERA_APRILTAG_DETECTOR
@@ -260,23 +285,23 @@ void apriltag_loop(void* arg) {
 
     while (1)
     {
-        camera_fb_t *fb = esp_camera_fb_get();
-        if (!fb) {
+        camera_fb_t *frame_buffer = esp_camera_fb_get();
+        if (!frame_buffer) {
             ESP_LOGE("CAM", "Frame capture failed");
             continue;
         }
 
-        if (fb->format != PIXFORMAT_GRAYSCALE) {
+        if (frame_buffer->format != PIXFORMAT_GRAYSCALE) {
             ESP_LOGE("CAM", "Camera not in grayscale!");
-            esp_camera_fb_return(fb);
+            esp_camera_fb_return(frame_buffer);
             continue;
         }
 
         image_u8_t img = {
-            .width  = fb->width,
-            .height = fb->height,
-            .stride = fb->width,
-            .buf    = fb->buf
+            .width  = frame_buffer->width,
+            .height = frame_buffer->height,
+            .stride = frame_buffer->width,
+            .buf    = frame_buffer->buf
         };
 
         zarray_t *detections = apriltag_detector_detect(td, &img);
@@ -297,7 +322,7 @@ void apriltag_loop(void* arg) {
         }
 
         apriltag_detections_destroy(detections);
-        esp_camera_fb_return(fb);
+        esp_camera_fb_return(frame_buffer);
     }
     // apriltag_detector_destroy(m_detector); // These should never run?
     // tag36h11_destroy(m_at_family);
@@ -305,6 +330,117 @@ void apriltag_loop(void* arg) {
     // // DO NOT RETURN
 };
 #endif
+
+#ifdef CAMERA_STREAMING
+// Uses ESP-IDF httpd library
+// Run whenever there is a request
+// Setup does not create video or anything, just sends an individual JPEG each frame forever
+// '/stream' does not send html or create a webpage, it is used by index to stream the images
+static esp_err_t stream_handler(httpd_req_t* request) { // static means visible in this file only (scoped to this file)
+    // httpd_req_t contains http metadata about the incoming request
+    // So at this point, someone has visited http://<ip-address>/stream
+    camera_fb_t* frame_buffer = NULL;
+    char part_buffer[64]; // Temporary storage for c-strings
+
+    // Tell the client we are not sending one image, but many images each seperated by boundaries
+    static const char* _STREAM_CONTENT_TYPE = "multipart/x-mixed-replace;boundary=frame";
+
+    static const char* _STREAM_BOUNDARY = "\r\n--frame\r\n"; // Indicates boundary (and draws prior image)
+
+    static const char* _STREAM_PART = "Content-Type: image/jpeg\r\nContent-Length: %u\r\n"; // Indicates image attributes
+
+    httpd_resp_set_type(request, _STREAM_CONTENT_TYPE); // Sets the response type according to above
+
+    while (true) { // Connection continues as long as client stays active and connected
+        frame_buffer = esp_camera_fb_get();
+        if (!frame_buffer) {
+            ESP_LOGE("STREAM", "Camera Capture Failed");
+            return ESP_FAIL; // Ends request (requires reload?)
+        }
+
+        esp_err_t still_connected = httpd_resp_send_chunk(request, _STREAM_BOUNDARY, strlen(_STREAM_BOUNDARY)); // Starts new frame
+        if (still_connected != ESP_OK) {
+            return ESP_FAIL; // Ends request, probably because client disconnected
+        }
+
+        // Sets up the header to tell the client what it is receiving
+        size_t header_length = snprintf(part_buffer, sizeof(part_buffer), _STREAM_PART, frame_buffer->len);
+
+        httpd_resp_send_chunk(request, part_buffer, header_length);
+
+        // Send the image itself as a series of chars (a c-string)
+        httpd_resp_send_chunk(request, (const char*)frame_buffer->buf, frame_buffer->len);
+
+        httpd_resp_send_chunk(request, NULL, 0); // Specifies the end of the chunks
+        // Only needed because we are sending individual chunks
+
+        esp_camera_fb_return(frame_buffer); // We are done with the capture now
+
+        vTaskDelay(pdMS_TO_TICKS(10)); // Wait for a moment to reset watchdogs and keep CPU below 100%
+    }
+
+    return ESP_OK;
+};
+// This one creates the actual html page which displays the images
+static esp_err_t index_handler(httpd_req_t* request) {
+    // httpd_req_t contains http metadata about the incoming request
+
+    // Create a simple HTML webpage
+    const char* html = 
+        "<!DOCTYPE html>"
+        "<html>"
+            "<head>"
+            "</head>"
+            "<body>"
+                "<h1>StormBot Camera</h1>"
+                "<img src=\"/stream\" />"
+            "</body>"
+        "</html>";
+
+    // Tell the client to expect raw HTML text
+    httpd_resp_set_type(request, "text/html");
+    // Send the basic webpage text once
+    httpd_resp_send(request, html, HTTPD_RESP_USE_STRLEN);
+
+    return ESP_OK;
+};
+
+void start_camera_server(void) {
+    httpd_config_t config = HTTPD_DEFAULT_CONFIG(); // Start with default, then adjust specific
+
+    config.server_port = 80; // Means that client does not need to specify a port 
+    config.ctrl_port = 32768; // Private internal port
+    config.max_uri_handlers = 8; // Number of unique requests to endpoints (/, /stream, different users)
+    config.stack_size = 16384; // Memory allocated to each incoming request
+    config.lru_purge_enable = true; // Drops older connections and caches
+
+    httpd_handle_t server = NULL; // Reference to the server
+    if (httpd_start(&server, &config) == ESP_OK) {
+        // Server has successfully started, now we set up the pages (URI ~= page)
+        httpd_uri_t index_uri = {
+            .uri = "/",
+            .method = HTTP_GET,
+            .handler = index_handler,
+            .user_ctx = NULL
+        };
+        httpd_register_uri_handler(server, &index_uri); // Register the root page
+        // Now whenever a browser requests '/', index_handler will be run
+
+        httpd_uri_t stream_uri = {
+            .uri = "/stream",
+            .method = HTTP_GET,
+            .handler = stream_handler,
+            .user_ctx = NULL
+        };
+        httpd_register_uri_handler(server, &stream_uri); // Register the stream page
+        // Now whenver a browser requests '/stream', stream_handler will be run
+
+        ESP_LOGI("HTTP", "Camera Server Started");
+    }else {
+        // Server failed to start
+        ESP_LOGE("HTTP", "Failed to Start Camera Server");
+    }
+};
 
 // Called every time a wifi event happens (callback based structure)
 static void wifi_event_handler(void* arg, esp_event_base_t event_base, int32_t event_id, void* event_data) {
@@ -324,6 +460,7 @@ static void wifi_event_handler(void* arg, esp_event_base_t event_base, int32_t e
             case IP_EVENT_STA_GOT_IP:
                 ip_event_got_ip_t* event = (ip_event_got_ip_t*) event_data; // Interpret the void* event_data
                 ESP_LOGI("WIFI", "Got IP: " IPSTR, IP2STR(&event->ip_info.ip));
+                start_camera_server();
         }
     }
 };
@@ -346,6 +483,7 @@ void wifi_init(void) {
     strcpy((char*)wifi_config.sta.ssid, WIFI_SSID); // Grab the wifi network info so it knows what and how to connect
     strcpy((char*)wifi_config.sta.password, WIFI_PASS);
     wifi_config.sta.threshold.authmode = WIFI_AUTH_WPA2_PSK; // Prevents connecting to open networks (may remove temporarily)
+    // wifi_config.sta.threshold.authmode = WIFI_AUTH_OPEN;
     wifi_config.sta.pmf_cfg.capable = true; // Tells the router "I am modern and flexible"
     wifi_config.sta.pmf_cfg.required = false;
 
@@ -355,21 +493,7 @@ void wifi_init(void) {
 
     esp_wifi_set_ps(WIFI_PS_NONE); // Turns off power saving measures because we are streaming
 };
-
-// Uses ESP-IDF httpd library
-// Run whenever there is a request
-static esp_err_t stream_handler(httpd_req_t* req) {
-    // httpd_req_t contains http metadata about the incoming request
-    httpd_config_t config = HTTPD_DEFAULT_CONFIG(); // Start with default, then adjust specific
-
-    config.server_port = 80; // Means that client does not need to specify a port 
-    config.ctrl_port = 32768; // Private internal port
-    config.max_uri_handlers = 8; // Number of unique requests to endpoints (/, /stream, different users)
-    config.stack_size = 8192; // Memory allocated to each incoming request
-    config.lru_purge_enable = true; // Drops older connections and caches
-
-    //...
-};
+#endif
 
 void app_main(void) {
     vTaskDelay(pdMS_TO_TICKS(2000));  // 2 second debug delay
@@ -400,6 +524,9 @@ void app_main(void) {
     }else {
         ESP_LOGI("Setup", "Creating 3");
         camera_init();
+#ifdef CAMERA_STREAMING
+        wifi_init();
+#endif
 
         ESP_LOGI("Setup", "Creating 2");
 #ifdef CAMERA_APRILTAG_DETECTOR

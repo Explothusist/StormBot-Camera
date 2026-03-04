@@ -16,5 +16,7 @@
 #define FRAME_WIDTH     320
 #define FRAME_HEIGHT    240
 
+#define TAG_BIT_ERROR_ALLOWED 1
+
 
 #endif

@@ -1,3 +1,6 @@
+#include "camera_type.h"
+#ifdef CAMERA_CONFIG_SERVER
+
 // Copyright 2015-2016 Espressif Systems (Shanghai) PTE LTD
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
@@ -14,9 +17,6 @@
 
 #include "app_httpd.h"
 
-#include "camera_type.h"
-
-#ifdef HTTP_USE_CONFIG_SERVER
 #include "esp_http_server.h"
 #include "esp_timer.h"
 #include "esp_camera.h"

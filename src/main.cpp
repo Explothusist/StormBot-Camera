@@ -264,6 +264,7 @@ void setup() {
     Serial.println(WiFi.localIP());
 
     startCameraServer();
+#endif
 
 
 #ifdef CAMERA_APRILTAG_DETECTOR

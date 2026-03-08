@@ -1,0 +1,3 @@
+[submodule "src/Automat"]
+	path = src/Automat
+	url = https://github.com/Explothusist/Automat

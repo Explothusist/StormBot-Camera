@@ -165,6 +165,7 @@ void scan_area(image_u8_t &image, int x, int y, int width, int height, apriltag_
 
 void apriltag_loop(void* param) {
     TagSetTracking* last_tags = static_cast<TagSetTracking*>(param);
+#ifdef USE_ROI
     TagDetection old_tags[MAX_TAGS_TO_TRACK]; // For ROI Tracking
     TagDetection last_seen_tags[MAX_TAGS_TO_TRACK]; // For ROI trying to find lost tags
     float last_tag_velocity[MAX_TAGS_TO_TRACK][2];
@@ -173,11 +174,12 @@ void apriltag_loop(void* param) {
         last_seen_tags[i].id = -1;
     }
     
+    int cycles_since_full_search = 0;
+    int nearest_tag_decimate = 0; // 0 = none, 1, 2, 4
+#endif
     std::vector<TagDetection> tag_list;
     tag_list.reserve(EXPECTED_MAX_TAG_COUNT);
     // tag_list.clear();
-    int cycles_since_full_search = 0;
-    int nearest_tag_decimate = 0; // 0 = none, 1, 2, 4
 
     // Main detecting loop (we just ignore the loop() function)
     while (true) {
@@ -236,6 +238,7 @@ void apriltag_loop(void* param) {
 
         tag_list.clear();
 
+#ifdef USE_ROI
         if (cycles_since_full_search < CYCLES_BETWEEN_FULL_SEARCH || 
             (nearest_tag_decimate >= 2 && cycles_since_full_search < CYCLES_BETWEEN_FULL_SEARCH_NEAR_TAG) ||
             (nearest_tag_decimate >= 4 && cycles_since_full_search < CYCLES_BETWEEN_FULL_SEARCH_HUGE_TAG)) {
@@ -315,6 +318,10 @@ void apriltag_loop(void* param) {
             cycles_since_full_search = 0;
         }
 
+#else
+        scan_area(image, 0, 0, frame_buffer->width, frame_buffer->height, apriltag_detector_dec_2, tag_list);
+#endif
+
         int counter = 0;
         while (!tag_list.empty() && counter < MAX_TAGS_TO_TRACK) {
             size_t max_i = 0;
@@ -330,7 +337,9 @@ void apriltag_loop(void* param) {
             }
 
             last_tags->tags[counter]->write(tag_list[max_i]);
+#ifdef USE_ROI
             old_tags[counter] = tag_list[max_i];
+#endif
             // tag_list.erase(tag_list.begin() + max_i);
             // Instead of erase, since order doesn't matter, swap and pop
             tag_list[max_i] = tag_list.back();
@@ -342,10 +351,11 @@ void apriltag_loop(void* param) {
             zeroed.id = -1;
 
             last_tags->tags[counter]->write(zeroed);
+#ifdef USE_ROI
             old_tags[counter] = zeroed;
+#endif
             counter += 1;
         }
-
 
         // Return camera framebuffer to the camera driver
         esp_camera_fb_return(frame_buffer);

@@ -31,6 +31,9 @@ struct TagSetTracking {
     atmt::ThreadsafeBuffer<TagDetection>* tags[MAX_TAGS_TO_TRACK];
 };
 
+#define USE_ROI
+// If you change ROI, don't forget to edit camera resolution!
+
 #define TAG_ROI_AREA 1.75 // (150%) Area to search when finding already identified tag
 #define LOST_TAG_ROI_AREA 2.5 // (225%) Area to search when finding already identified tag that has been lost
 #define SMALL_TAG_ROI_MULT 1.5

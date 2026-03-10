@@ -22,15 +22,16 @@
 //#define CAMERA_MODEL_DFRobot_FireBeetle2_ESP32S3 // Has PSRAM
 //#define CAMERA_MODEL_DFRobot_Romeo_ESP32S3 // Has PSRAM
 
-// #define CAMERA_APRILTAG_DETECTOR
+#define CAMERA_APRILTAG_DETECTOR
 // #define CAMERA_STREAMING
-#define CAMERA_CONFIG_SERVER
+// #define CAMERA_CONFIG_SERVER
 
 #if defined(CAMERA_APRILTAG_DETECTOR) + defined(CAMERA_STREAMING) + defined(CAMERA_CONFIG_SERVER) != 1
     #error "Camera Type: Exactly one Camera type must be defined"
 #endif
 
 #ifdef CAMERA_APRILTAG_DETECTOR
+    // This functionality will require heavy modification to use again
     // #define APRILTAG_ESTIMATE_TAG_POS
 #endif
 

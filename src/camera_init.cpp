@@ -52,12 +52,33 @@ void init_camera() {
     config.xclk_freq_hz = 20000000;
 
     // Set frame config
+#ifdef CAMERA_APRILTAG_DETECTOR
+    // config.frame_size = FRAMESIZE_SVGA; // 800 x 600
+    // config.frame_size = FRAMESIZE_VGA; // 640 x 480
+    config.frame_size = FRAMESIZE_HVGA; // 480 x 320
+    config.frame_size = FRAMESIZE_QVGA; // 320 x 240
+    config.pixel_format = PIXFORMAT_GRAYSCALE; // Required for AprilTag processing
+    config.grab_mode = CAMERA_GRAB_LATEST; // Has to be in this mode, or detection will be lag
+    config.fb_location = CAMERA_FB_IN_PSRAM;
+    //config.jpeg_quality = 12;
+    config.fb_count = 1; // Can't afford (and also not needed) to have 2
+#endif
+#ifdef CAMERA_STREAMING
     config.frame_size = FRAMESIZE_SVGA; // You can change the resolution to fit your need
     config.pixel_format = PIXFORMAT_GRAYSCALE; // Required for AprilTag processing
     config.grab_mode = CAMERA_GRAB_LATEST; // Has to be in this mode, or detection will be lag
     config.fb_location = CAMERA_FB_IN_PSRAM;
     //config.jpeg_quality = 12;
     config.fb_count = 1; // Can't afford (and also not needed) to have 2
+#endif
+#ifdef CAMERA_CONFIG_SERVER
+    config.frame_size = FRAMESIZE_SVGA; // You can change the resolution to fit your need
+    config.pixel_format = PIXFORMAT_GRAYSCALE; // Required for AprilTag processing
+    config.grab_mode = CAMERA_GRAB_LATEST; // Has to be in this mode, or detection will be lag
+    config.fb_location = CAMERA_FB_IN_PSRAM;
+    //config.jpeg_quality = 12;
+    config.fb_count = 1; // Can't afford (and also not needed) to have 2
+#endif
 
 #if defined(CAMERA_MODEL_ESP_EYE)
     pinMode(13, INPUT_PULLUP);

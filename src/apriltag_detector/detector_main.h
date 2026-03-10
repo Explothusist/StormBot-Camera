@@ -32,6 +32,9 @@
 #include "apriltag_pose.h" // For pose estimation
 #include "common/matd.h"
 
+#include "../Automat/automat.h" // Currently just serial
+#include "dectector_utils.h"
+
 
 #ifdef CAP_TO_SD
 #include "SD_MMC.h"

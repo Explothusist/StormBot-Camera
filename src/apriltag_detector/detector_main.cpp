@@ -10,6 +10,7 @@
 apriltag_family_t *apriltag_family;
 apriltag_detector_t *apriltag_detector_dec_1;
 apriltag_detector_t *apriltag_detector_dec_2;
+apriltag_detector_t *apriltag_detector_dec_3;
 apriltag_detector_t *apriltag_detector_dec_4;
 
 
@@ -47,13 +48,13 @@ void scan_area(image_u8_t &image, int x, int y, int width, int height, apriltag_
         // Print tag ID
         Serial.print("ID: ");
         Serial.println(detection->id);
-        Serial.printf("");
+        Serial.printf("-------------------");
 
-        Serial.printf("ID=%d Hamming=%d Center=(%.1f, %.1f)",
-                    detection->id,
-                    detection->hamming,
-                    detection->c[0],
-                    detection->c[1]);
+        // Serial.printf("ID=%d Hamming=%d Center=(%.1f, %.1f)",
+        //             detection->id,
+        //             detection->hamming,
+        //             detection->c[0],
+        //             detection->c[1]);
 #endif
         TagDetection new_detection;
         new_detection.x = x + detection->c[0];
@@ -168,10 +169,20 @@ void apriltag_loop(void* param) {
 #ifdef USE_ROI
     TagDetection old_tags[MAX_TAGS_TO_TRACK]; // For ROI Tracking
     TagDetection last_seen_tags[MAX_TAGS_TO_TRACK]; // For ROI trying to find lost tags
+#ifdef ROI_USE_KINEMATIC_PREDICTOR
+    int time_since_seen[MAX_TAGS_TO_TRACK]; // Track for some number of frames
+    atmt::KinematicPredictor tag_kinematics[MAX_TAGS_TO_TRACK][3]; // 0 - X, 1 - Y, 2 - tag_size
+#else
     float last_tag_velocity[MAX_TAGS_TO_TRACK][2];
+#endif
     for (int i = 0; i < MAX_TAGS_TO_TRACK; i++) {
         old_tags[i].id = -1;
         last_seen_tags[i].id = -1;
+#ifdef ROI_USE_KINEMATIC_PREDICTOR
+        tag_kinematics[i][0] = atmt::KinematicPredictor(0.0, 0.0, 0.0, 0.0, 2.0);
+        tag_kinematics[i][1] = atmt::KinematicPredictor(0.0, 0.0, 0.0, 0.0, 2.0);
+        tag_kinematics[i][2] = atmt::KinematicPredictor(0.0, 0.0, 0.0, 0.0, 2.0);
+#endif
     }
     
     int cycles_since_full_search = 0;
@@ -180,6 +191,7 @@ void apriltag_loop(void* param) {
     std::vector<TagDetection> tag_list;
     tag_list.reserve(EXPECTED_MAX_TAG_COUNT);
     // tag_list.clear();
+    atmt::Timestamp detection_moment;
 
     // Main detecting loop (we just ignore the loop() function)
     while (true) {
@@ -191,6 +203,7 @@ void apriltag_loop(void* param) {
 #endif
             continue;
         }
+        detection_moment = atmt::getSystemTime();
 
     // Capture frame to SD card
 #ifdef CAP_TO_SD
@@ -242,47 +255,78 @@ void apriltag_loop(void* param) {
         if (cycles_since_full_search < CYCLES_BETWEEN_FULL_SEARCH || 
             (nearest_tag_decimate >= 2 && cycles_since_full_search < CYCLES_BETWEEN_FULL_SEARCH_NEAR_TAG) ||
             (nearest_tag_decimate >= 4 && cycles_since_full_search < CYCLES_BETWEEN_FULL_SEARCH_HUGE_TAG)) {
-            if (nearest_tag_decimate > 0) {
-                Serial.println("Nearest Decimate Working");
-                if (nearest_tag_decimate > 1) {
-                    Serial.println("Nearest Decimate Working Well");
-                }
-            }
-            if (cycles_since_full_search > CYCLES_BETWEEN_FULL_SEARCH) {
-                Serial.println("Delaying Full Scan");
-            }
+            // if (nearest_tag_decimate > 0) {
+            //     Serial.println("Nearest Decimate Working");
+            //     if (nearest_tag_decimate > 1) {
+            //         Serial.println("Nearest Decimate Working Well");
+            //     }
+            // }
+            // if (cycles_since_full_search > CYCLES_BETWEEN_FULL_SEARCH) {
+            //     Serial.println("Delaying Full Scan");
+            // }
             nearest_tag_decimate = 0;
             if (old_tags[0].id >= 0 || last_seen_tags[0].id >= 0) { // If any tag was detected last two frames
 #if DEBUG >= 1
-                Serial.println("Running Tag ROI");
+                Serial.println("ROI ");
 #endif
                 for (int i = 0; i < MAX_TAGS_TO_TRACK; i++) {
                     TagDetection tag = old_tags[i];
                     float roi_area = TAG_ROI_AREA;
                     if (tag.id < 0) {
-                        last_tag_velocity[i][0] = 0;
-                        last_tag_velocity[i][1] = 0;
+                        // tag_kinematics[i][0].Reset(); // Moved to end of loop (on send and store)
+                        // tag_kinematics[i][1].Reset();
+                        // tag_kinematics[i][2].Reset();
+                        // last_tag_velocity[i][0] = 0;
+                        // last_tag_velocity[i][1] = 0;
                         tag = last_seen_tags[i];
                         roi_area = LOST_TAG_ROI_AREA;
+#ifdef ROI_USE_KINEMATIC_PREDICTOR
+                        if (tag.id < 0 || time_since_seen[i] < REMEMBER_LOST_TAGS_FOR_FRAMES) {
+#else
                         if (tag.id < 0) {
+#endif
+#if DEBUG >= 1
+                            Serial.println("UNREC ");
+#endif
+                            last_seen_tags[i].id = -1;
                             continue;
                         }
-                        last_seen_tags[i].id = -1; // Only use this for one frame
+#ifdef ROI_USE_KINEMATIC_PREDICTOR
+                        time_since_seen[i] += 1;
 #if DEBUG >= 1
-                        Serial.println("Running Lost Tag ROI");
+                        Serial.printf("LOST%i ", time_since_seen[i]);
+#endif
+#else
+                        last_seen_tags[i].id = -1; // Only use this for one frame
 #endif
                     }else {
                         last_seen_tags[i] = tag;
-                        if (tag.id == old_tags[i].id) {
-                            last_tag_velocity[i][0] = tag.x - old_tags[i].x;
-                            last_tag_velocity[i][1] = tag.y - old_tags[i].y;
-                        }
+#ifdef ROI_USE_KINEMATIC_PREDICTOR
+                        time_since_seen[i] = 0;
+#endif
+                        // if (tag.id == old_tags[i].id) {
+                            // tag_kinematics[i][0].updateLocation(tag.x); // Moved to end of loop (on send and store)
+                            // tag_kinematics[i][1].updateLocation(tag.y);
+                            // last_tag_velocity[i][0] = tag.x - old_tags[i].x;
+                            // last_tag_velocity[i][1] = tag.y - old_tags[i].y;
+                        // }
                     }
+#if DEBUG >= 1
+                    Serial.println("DET ");
+#endif
+                    atmt::Timestamp search_moment = atmt::getSystemTime();
+#ifdef ROI_USE_KINEMATIC_PREDICTOR
+                    float tag_size = tag_kinematics[i][2].getPredictedPosition(search_moment);
+#else
                     float tag_size = std::min(tag.bounding_width, tag.bounding_height);
+#endif
                     apriltag_detector_t* detector = apriltag_detector_dec_1;
                     if (tag_size > DROP_QUAD_DEC_TO_4_THRESHOLD) {
                         detector = apriltag_detector_dec_4;
                         nearest_tag_decimate = 4;
+                    }else if (tag_size > DROP_QUAD_DEC_TO_3_THRESHOLD) {
+                        detector = apriltag_detector_dec_3;
+                        nearest_tag_decimate = 3;
                     }else if (tag_size > DROP_QUAD_DEC_TO_2_THRESHOLD) {
                         detector = apriltag_detector_dec_2;
                         nearest_tag_decimate = 2;
@@ -290,23 +334,28 @@ void apriltag_loop(void* param) {
                         nearest_tag_decimate = 1;
                         roi_area *= SMALL_TAG_ROI_MULT;
                     }
+#ifdef ROI_USE_KINEMATIC_PREDICTOR
+                    int x = atmt::clamp(static_cast<int>(tag_kinematics[i][0].getPredictedPosition(search_moment)) - static_cast<int>(tag.bounding_width * roi_area * 0.5), 0, image.width - 1);
+                    int y = atmt::clamp(static_cast<int>(tag_kinematics[i][1].getPredictedPosition(search_moment)) - static_cast<int>(tag.bounding_height * roi_area * 0.5), 0, image.height - 1);
+#else
                     int x = atmt::clamp(static_cast<int>(tag.x) + static_cast<int>(last_tag_velocity[i][0] * VELOCITY_SCALING) - static_cast<int>(tag.bounding_width * roi_area * 0.5), 0, image.width);
                     int y = atmt::clamp(static_cast<int>(tag.y) + static_cast<int>(last_tag_velocity[i][1] * VELOCITY_SCALING) - static_cast<int>(tag.bounding_height * roi_area * 0.5), 0, image.height);
+#endif
                     int width = atmt::clamp(static_cast<int>(tag.bounding_width * roi_area), 0, static_cast<int>(image.width - x));
                     int height = atmt::clamp(static_cast<int>(tag.bounding_height * roi_area), 0, static_cast<int>(image.height - y));
                     scan_area(image, x, y, width, height, detector, tag_list);
                 }
             }else {
 #if DEBUG >= 1
-                Serial.println("Lost All Tags...");
+                Serial.println("ALL");
 #endif
                 scan_area(image, 0, 0, frame_buffer->width, frame_buffer->height, apriltag_detector_dec_2, tag_list);
-                cycles_since_full_search = CYCLES_BETWEEN_FULL_SEARCH;
+                // cycles_since_full_search = CYCLES_BETWEEN_FULL_SEARCH;
             }
             cycles_since_full_search += 1;
         }else {
 #if DEBUG >= 1
-            Serial.println("Running full scan");
+            Serial.println("DUMP");
 #endif
             if (nearest_tag_decimate >= 4) {
                 scan_area(image, 0, 0, frame_buffer->width, frame_buffer->height, apriltag_detector_dec_4, tag_list);
@@ -338,6 +387,17 @@ void apriltag_loop(void* param) {
 
             last_tags->tags[counter]->write(tag_list[max_i]);
 #ifdef USE_ROI
+#ifdef ROI_USE_KINEMATIC_PREDICTOR
+            if (old_tags[counter].id == tag_list[max_i].id) {
+                tag_kinematics[counter][0].updateLocation(tag_list[max_i].x, detection_moment);
+                tag_kinematics[counter][1].updateLocation(tag_list[max_i].y, detection_moment);
+                tag_kinematics[counter][2].updateLocation(std::min(tag_list[max_i].bounding_width, tag_list[max_i].bounding_height), detection_moment);
+            }else {
+                tag_kinematics[counter][0].reset();
+                tag_kinematics[counter][1].reset();
+                tag_kinematics[counter][2].reset();
+            }
+#endif
             old_tags[counter] = tag_list[max_i];
 #endif
             // tag_list.erase(tag_list.begin() + max_i);
@@ -352,6 +412,11 @@ void apriltag_loop(void* param) {
 
             last_tags->tags[counter]->write(zeroed);
 #ifdef USE_ROI
+#ifdef ROI_USE_KINEMATIC_PREDICTOR
+            tag_kinematics[counter][0].reset();
+            tag_kinematics[counter][1].reset();
+            tag_kinematics[counter][2].reset();
+#endif
             old_tags[counter] = zeroed;
 #endif
             counter += 1;
@@ -412,11 +477,13 @@ void init_apriltag_detector() {
     // Create AprilTag detector object
     apriltag_detector_dec_1 = apriltag_detector_create();
     apriltag_detector_dec_2 = apriltag_detector_create();
+    apriltag_detector_dec_3 = apriltag_detector_create();
     apriltag_detector_dec_4 = apriltag_detector_create();
 
     // Add tag family to the detector
     apriltag_detector_add_family_bits(apriltag_detector_dec_1, apriltag_family, 1);
     apriltag_detector_add_family_bits(apriltag_detector_dec_2, apriltag_family, 1);
+    apriltag_detector_add_family_bits(apriltag_detector_dec_3, apriltag_family, 1);
     apriltag_detector_add_family_bits(apriltag_detector_dec_4, apriltag_family, 1);
     
     apriltag_detector_dec_1->quad_sigma = 0.0;
@@ -432,6 +499,13 @@ void init_apriltag_detector() {
     apriltag_detector_dec_2->decode_sharpening = 0.25;
     apriltag_detector_dec_2->nthreads = 1;
     apriltag_detector_dec_2->debug = 0;
+
+    apriltag_detector_dec_3->quad_sigma = 0.0;
+    apriltag_detector_dec_3->quad_decimate = 3.0;
+    apriltag_detector_dec_3->refine_edges = 0;
+    apriltag_detector_dec_3->decode_sharpening = 0.25;
+    apriltag_detector_dec_3->nthreads = 1;
+    apriltag_detector_dec_3->debug = 0;
 
     apriltag_detector_dec_4->quad_sigma = 0.0;
     apriltag_detector_dec_4->quad_decimate = 4.0;

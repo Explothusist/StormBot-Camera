@@ -33,6 +33,7 @@ struct TagSetTracking {
 
 #define USE_ROI
 // If you change ROI, don't forget to edit camera resolution!
+// #define ROI_USE_KINEMATIC_PREDICTOR
 
 #define TAG_ROI_AREA 1.75 // (150%) Area to search when finding already identified tag
 #define LOST_TAG_ROI_AREA 2.5 // (225%) Area to search when finding already identified tag that has been lost
@@ -41,12 +42,15 @@ struct TagSetTracking {
 #define CYCLES_BETWEEN_FULL_SEARCH_NEAR_TAG 20
 #define CYCLES_BETWEEN_FULL_SEARCH_HUGE_TAG 50
 
+#define REMEMBER_LOST_TAGS_FOR_FRAMES 3
+
 #define ABS_MIN_DETECT_TAG_SIZE_PIXELS 15 // Technically not absolute minimum
 #define MIN_DETECT_PIXEL_BUFFER         5
 #define MIN_DETECT_PIXEL_SIZE           20
 #define MIN_DETECT_TAG_SIZE_PIXELS      MIN_DETECT_PIXEL_SIZE + MIN_DETECT_PIXEL_BUFFER // Not absolute minimum, but enough for steady consistent detection
 // #define MIN_DETECT_TAG_SIZE_BUFFER 1.2
 #define DROP_QUAD_DEC_TO_2_THRESHOLD    MIN_DETECT_PIXEL_SIZE * 2 + MIN_DETECT_PIXEL_BUFFER
+#define DROP_QUAD_DEC_TO_3_THRESHOLD    MIN_DETECT_PIXEL_SIZE * 3 + MIN_DETECT_PIXEL_BUFFER
 #define DROP_QUAD_DEC_TO_4_THRESHOLD    MIN_DETECT_PIXEL_SIZE * 4 + MIN_DETECT_PIXEL_BUFFER
 
 #define VELOCITY_SCALING 1.5 // If it moved x fast, assume it will move 1.5x in that direction next frame

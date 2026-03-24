@@ -32,6 +32,7 @@ char* JPEG_Getter(size_t& length, void* arg) {
 
 
 atmt::CameraStreamingServer m_server{ WIFI_SSID, WIFI_PASSWORD, JPEG_Getter, 20, nullptr };
+// atmt::CameraStreamingServer m_server{ WIFI_SSID, WIFI_PASSWORD, JPEG_Getter, 1, nullptr };
 
 void init_http_streaming() {
 #if DEBUG >= 1

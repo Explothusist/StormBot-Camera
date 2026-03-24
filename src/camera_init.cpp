@@ -56,7 +56,7 @@ void init_camera() {
     // config.frame_size = FRAMESIZE_SVGA; // 800 x 600
     // config.frame_size = FRAMESIZE_VGA; // 640 x 480
     config.frame_size = FRAMESIZE_HVGA; // 480 x 320
-    config.frame_size = FRAMESIZE_QVGA; // 320 x 240
+    // config.frame_size = FRAMESIZE_QVGA; // 320 x 240
     config.pixel_format = PIXFORMAT_GRAYSCALE; // Required for AprilTag processing
     config.grab_mode = CAMERA_GRAB_LATEST; // Has to be in this mode, or detection will be lag
     config.fb_location = CAMERA_FB_IN_PSRAM;
@@ -64,11 +64,14 @@ void init_camera() {
     config.fb_count = 1; // Can't afford (and also not needed) to have 2
 #endif
 #ifdef CAMERA_STREAMING
-    config.frame_size = FRAMESIZE_SVGA; // You can change the resolution to fit your need
-    config.pixel_format = PIXFORMAT_GRAYSCALE; // Required for AprilTag processing
+    // config.frame_size = FRAMESIZE_SVGA; // 800 x 600
+    config.frame_size = FRAMESIZE_VGA; // 640x480
+    // config.frame_size = FRAMESIZE_QVGA; // 320x240
+    config.pixel_format = PIXFORMAT_JPEG; // Required for AprilTag processing
     config.grab_mode = CAMERA_GRAB_LATEST; // Has to be in this mode, or detection will be lag
     config.fb_location = CAMERA_FB_IN_PSRAM;
-    //config.jpeg_quality = 12;
+    // config.jpeg_quality = 12;
+    config.jpeg_quality = 20;
     config.fb_count = 1; // Can't afford (and also not needed) to have 2
 #endif
 #ifdef CAMERA_CONFIG_SERVER
@@ -118,6 +121,7 @@ void init_camera() {
     s->set_vflip(s, 1);
 #endif
 
+#ifdef CAMERA_APRILTAG_DETECTOR
     // Custom camera configs should go here
     s->set_brightness(s, 0);         // -2 to 2
     s->set_contrast(s, 0);             // -2 to 2
@@ -139,6 +143,53 @@ void init_camera() {
     s->set_hmirror(s, 0);                // 0 = disable , 1 = enable
     s->set_vflip(s, 1);                    // 0 = disable , 1 = enable
     s->set_dcw(s, 1);                        // 0 = disable , 1 = enable
+#endif
+#ifdef CAMERA_STREAMING
+    // Custom camera configs should go here
+    s->set_brightness(s, 1);         // -2 to 2
+    s->set_contrast(s, 0);             // -2 to 2
+    s->set_saturation(s, 0);         // -2 to 2
+    s->set_whitebal(s, 1);             // 0 = disable , 1 = enable
+    s->set_awb_gain(s, 1);             // 0 = disable , 1 = enable
+    s->set_wb_mode(s, 0);                // 0 to 4 - if awb_gain enabled (0 - Auto, 1 - Sunny, 2 - Cloudy, 3 - Office, 4 - Home)
+    s->set_exposure_ctrl(s, 1);    // 0 = disable , 1 = enable
+    s->set_aec2(s, 1);                     // 0 = disable , 1 = enable
+    s->set_ae_level(s, 0);             // -2 to 2
+    s->set_aec_value(s, 168);        // 0 to 1200
+    s->set_gain_ctrl(s, 1);            // 0 = disable , 1 = enable
+    s->set_agc_gain(s, 0);             // 0 to 30
+    s->set_gainceiling(s, (gainceiling_t)0);    // 0 to 6
+    s->set_bpc(s, 0);                        // 0 = disable , 1 = enable
+    s->set_wpc(s, 1);                        // 0 = disable , 1 = enable
+    s->set_raw_gma(s, 1);                // 0 = disable , 1 = enable
+    s->set_lenc(s, 1);                     // 0 = disable , 1 = enable
+    s->set_hmirror(s, 0);                // 0 = disable , 1 = enable
+    s->set_vflip(s, 1);                    // 0 = disable , 1 = enable
+    s->set_dcw(s, 1);                        // 0 = disable , 1 = enable
+#endif
+#ifdef CAMERA_CONFIG_SERVER
+    // Custom camera configs should go here
+    s->set_brightness(s, 0);         // -2 to 2
+    s->set_contrast(s, 0);             // -2 to 2
+    s->set_saturation(s, 0);         // -2 to 2
+    s->set_whitebal(s, 1);             // 0 = disable , 1 = enable
+    s->set_awb_gain(s, 1);             // 0 = disable , 1 = enable
+    s->set_wb_mode(s, 0);                // 0 to 4 - if awb_gain enabled (0 - Auto, 1 - Sunny, 2 - Cloudy, 3 - Office, 4 - Home)
+    s->set_exposure_ctrl(s, 1);    // 0 = disable , 1 = enable
+    s->set_aec2(s, 1);                     // 0 = disable , 1 = enable
+    s->set_ae_level(s, 0);             // -2 to 2
+    s->set_aec_value(s, 168);        // 0 to 1200
+    s->set_gain_ctrl(s, 1);            // 0 = disable , 1 = enable
+    s->set_agc_gain(s, 0);             // 0 to 30
+    s->set_gainceiling(s, (gainceiling_t)0);    // 0 to 6
+    s->set_bpc(s, 0);                        // 0 = disable , 1 = enable
+    s->set_wpc(s, 1);                        // 0 = disable , 1 = enable
+    s->set_raw_gma(s, 1);                // 0 = disable , 1 = enable
+    s->set_lenc(s, 1);                     // 0 = disable , 1 = enable
+    s->set_hmirror(s, 0);                // 0 = disable , 1 = enable
+    s->set_vflip(s, 1);                    // 0 = disable , 1 = enable
+    s->set_dcw(s, 1);                        // 0 = disable , 1 = enable
+#endif
 
     // Done init camera
 #if DEBUG >= 1

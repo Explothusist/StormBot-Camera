@@ -13,6 +13,10 @@
 #include "apriltag_detector/detector_main.h"
 #endif
 
+#ifdef CAMERA_STREAMING
+#include "http_streaming/streaming_main.h"
+#endif
+
 void setup() {
 
     init_camera();
@@ -26,8 +30,16 @@ void setup() {
     start_apriltag_detector_loop();
 #endif
 
+#ifdef CAMERA_STREAMING
+    init_http_streaming();
+#endif
+
 }
 
 void loop() {
     // Nothing here, the real loop is already at the end of setup()
+    
+#ifdef CAMERA_STREAMING
+    http_streaming_loop();
+#endif
 }

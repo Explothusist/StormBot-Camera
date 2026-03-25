@@ -19,10 +19,9 @@
 #define TAG_SIZE 0.05 // 2 in (~0.05 m)
 
 #if defined(CAMERA_CONFIG_SERVER) || defined(HTTP_RUN_AUTOMAT_SERVER)
-// #define WIFI_SSID "HP Laserjet-61"
-// #define WIFI_PASSWORD "LeidMein"
-#define WIFI_SSID "tungsten hexaflouride"
-#define WIFI_PASSWORD "We have to use something."
+// #define WIFI_SSID "CHANGEME"
+// #define WIFI_PASSWORD "CHANGEME"
+#include "wifi_network.h"
 #endif
 
 #if defined(CAMERA_APRILTAG_DETECTOR) && defined(APRILTAG_ESTIMATE_TAG_POS)

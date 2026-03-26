@@ -22,16 +22,16 @@ char* JPEG_Getter(size_t& length, void* arg) {
         return nullptr;
     }
     length = frame_buffer->len;
-    if (!frame_buffer->buf) {
-        Serial.println("Capture Failed");
-    }else {
-        Serial.println("Capture Successful");
-    }
+    // if (!frame_buffer->buf) {
+    //     Serial.println("Capture Failed");
+    // }else {
+    //     Serial.println("Capture Successful");
+    // }
     return (char*)frame_buffer->buf;
 };
 
 
-atmt::CameraStreamingServer m_server{ WIFI_SSID, WIFI_PASSWORD, JPEG_Getter, 20, nullptr };
+atmt::CameraStreamingServer m_server{ "STORM_Streaming_Camera-01", WIFI_SSID, WIFI_PASSWORD, JPEG_Getter, 20, nullptr };
 // atmt::CameraStreamingServer m_server{ WIFI_SSID, WIFI_PASSWORD, JPEG_Getter, 1, nullptr };
 
 void init_http_streaming() {

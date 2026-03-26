@@ -146,8 +146,8 @@ void init_camera() {
 #endif
 #ifdef CAMERA_STREAMING
     // Custom camera configs should go here
-    s->set_brightness(s, 1);         // -2 to 2
-    s->set_contrast(s, 0);             // -2 to 2
+    s->set_brightness(s, 2);         // -2 to 2
+    s->set_contrast(s, 1);             // -2 to 2
     s->set_saturation(s, 0);         // -2 to 2
     s->set_whitebal(s, 1);             // 0 = disable , 1 = enable
     s->set_awb_gain(s, 1);             // 0 = disable , 1 = enable

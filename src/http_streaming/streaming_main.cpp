@@ -2,6 +2,7 @@
 #ifdef CAMERA_STREAMING
 
 #include "streaming_main.h"
+#include "streaming_constants.h"
 #include "../constants.h"
 #include "../camera_init.h"
 #include <Arduino.h>
@@ -31,7 +32,7 @@ char* JPEG_Getter(size_t& length, void* arg) {
 };
 
 
-atmt::CameraStreamingServer m_server{ "STORM_Streaming_Camera-01", WIFI_SSID, WIFI_PASSWORD, JPEG_Getter, 20, nullptr };
+atmt::CameraStreamingServer m_server{ (std::string("STORM_Streaming_Camera-")+std::string(CAMERA_ID)), WIFI_SSID, WIFI_PASSWORD, JPEG_Getter, 20, nullptr };
 // atmt::CameraStreamingServer m_server{ WIFI_SSID, WIFI_PASSWORD, JPEG_Getter, 1, nullptr };
 
 void init_http_streaming() {

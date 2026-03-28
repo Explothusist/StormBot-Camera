@@ -4,26 +4,13 @@
 #ifndef APRILTAG_DETECTOR_UTILS_
 #define APRILTAG_DETECTOR_UTILS_
 
+#include "storm_serial_utils.h"
 // WARNING: ANY changes made to this file MUST be duplicated
 //      in the corresponding files in VexBot and EspBot!
 
-#include <cstdint>
-
-struct __attribute__((packed)) TagDetection {
-    int32_t id;
-    float x;
-    float y;
-    float bounding_width;
-    float bounding_height;
-    float corners[4][2];
-};
-static_assert(sizeof(TagDetection) == 52, "Struct Packing Error");
-typedef enum {
-    CORNER_TL = 0,
-    CORNER_TR = 1,
-    CORNER_BR = 2,
-    CORNER_BL = 3
-} TagCorner;
+#define SERIAL_ADDRESS Address_Camera_1
+#define RX_PIN 16
+#define TX_PIN 17
 
 #define EXPECTED_MAX_TAG_COUNT 5
 #define MAX_TAGS_TO_TRACK 1
@@ -54,24 +41,6 @@ struct TagSetTracking {
 #define DROP_QUAD_DEC_TO_4_THRESHOLD    MIN_DETECT_PIXEL_SIZE * 4 + MIN_DETECT_PIXEL_BUFFER
 
 #define VELOCITY_SCALING 1.5 // If it moved x fast, assume it will move 1.5x in that direction next frame
-
-enum SerialIndicators {
-    Serial_GetLargestDetection = 0x05,
-    Serial_GetAllDetections = 0x06
-};
-
-enum SerialAddresses {
-    Address_VexBot = 0x00,
-    Address_EspBot = 0x01,
-    Address_Camera_1 = 0x05,
-    Address_Camera_2 = 0x06,
-    Address_Camera_3 = 0x07,
-    Address_Camera_4 = 0x08
-};
-
-#define SERIAL_ADDRESS Address_Camera_1
-#define RX_PIN 16
-#define TX_PIN 17
 
 
 #endif

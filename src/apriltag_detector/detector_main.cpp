@@ -449,14 +449,24 @@ void serial_loop(void* param) {
                 TagDetection last_tag_detection = last_tags->tags[0]->read();
                 // uint8_t tag_data[sizeof(TagDetection)];
                 // memcpy(tag_data, &last_tag_detection, sizeof(TagDetection));
-                serial_reader.sendMessage(Address_VexBot, reinterpret_cast<uint8_t*>(&last_tag_detection), sizeof(TagDetection));
+                serial_reader.sendMessagePrefixed(
+                    Address_VexBot,
+                    static_cast<uint8_t>(Serial_IsSingleDetection),
+                    reinterpret_cast<uint8_t*>(&last_tag_detection),
+                    sizeof(TagDetection)
+                );
             }else if (sender == Address_VexBot && length == 1 && data[0] == static_cast<uint8_t>(Serial_GetAllDetections)) {
                 uint8_t tag_data[sizeof(TagDetection) * MAX_TAGS_TO_TRACK];
                 for (int i = 0; i < MAX_TAGS_TO_TRACK; i++) {
                     TagDetection tag = last_tags->tags[i]->read();
                     memcpy(tag_data + sizeof(TagDetection) * i, &tag, sizeof(TagDetection));
                 }
-                serial_reader.sendMessage(Address_VexBot, tag_data, sizeof(TagDetection) * MAX_TAGS_TO_TRACK);
+                serial_reader.sendMessagePrefixed(
+                    Address_VexBot,
+                    static_cast<uint8_t>(Serial_IsManyDetections),
+                    tag_data,
+                    sizeof(TagDetection) * MAX_TAGS_TO_TRACK
+                );
             }
         }
 

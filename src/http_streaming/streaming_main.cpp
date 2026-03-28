@@ -32,7 +32,8 @@ char* JPEG_Getter(size_t& length, void* arg) {
 };
 
 
-atmt::CameraStreamingServer m_server{ (std::string("STORM_Streaming_Camera-")+std::string(CAMERA_ID)), WIFI_SSID, WIFI_PASSWORD, JPEG_Getter, 20, nullptr };
+// atmt::CameraStreamingServer m_server{ (std::string("STORM_Streaming_Camera-")+std::string(CAMERA_ID)), WIFI_SSID, WIFI_PASSWORD, JPEG_Getter, 20, nullptr };
+atmt::RobotDashboardServer m_server{ "STORM_Esp32_MainBot", WIFI_SSID, WIFI_PASSWORD };
 // atmt::CameraStreamingServer m_server{ WIFI_SSID, WIFI_PASSWORD, JPEG_Getter, 1, nullptr };
 
 void init_http_streaming() {

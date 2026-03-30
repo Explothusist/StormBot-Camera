@@ -10,3 +10,4 @@ components/esp32-camera/*
 managed_components/
 dependencies.lock
 build/
+src/wifi_network.h

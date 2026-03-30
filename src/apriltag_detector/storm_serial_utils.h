@@ -30,7 +30,9 @@ enum SerialIndicators {
     Serial_GetLargestDetection = 0x05, // VexBot requesting tag data
     Serial_GetAllDetections = 0x06,
     Serial_IsSingleDetection = 0x07, // Cameras sending tag data
-    Serial_IsManyDetections = 0x08
+    Serial_IsManyDetections = 0x08,
+
+    Serial_Heartbeat = 0x09
 };
 
 enum SerialAddresses {

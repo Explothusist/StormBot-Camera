@@ -65,13 +65,14 @@ void init_camera() {
 #endif
 #ifdef CAMERA_STREAMING
     // config.frame_size = FRAMESIZE_SVGA; // 800 x 600
-    config.frame_size = FRAMESIZE_VGA; // 640x480
-    // config.frame_size = FRAMESIZE_QVGA; // 320x240
+    // config.frame_size = FRAMESIZE_VGA; // 640x480
+    config.frame_size = FRAMESIZE_QVGA; // 320x240
     config.pixel_format = PIXFORMAT_JPEG; // Required for AprilTag processing
     config.grab_mode = CAMERA_GRAB_LATEST; // Has to be in this mode, or detection will be lag
     config.fb_location = CAMERA_FB_IN_PSRAM;
     // config.jpeg_quality = 12;
-    config.jpeg_quality = 20;
+    // config.jpeg_quality = 20;
+    config.jpeg_quality = 16;
     config.fb_count = 1; // Can't afford (and also not needed) to have 2
 #endif
 #ifdef CAMERA_CONFIG_SERVER

@@ -432,7 +432,7 @@ void apriltag_loop(void* param) {
 void serial_loop(void* param) {
     TagSetTracking* last_tags = static_cast<TagSetTracking*>(param);
 
-    atmt::SerialReader serial_reader = atmt::SerialReader(SERIAL_ADDRESS, RX_PIN, TX_PIN);
+    atmt::SerialReader serial_reader = atmt::SerialReader(atmt::Interface_Serial1, SERIAL_ADDRESS, RX_PIN, TX_PIN);
 
     serial_reader.init();
 
@@ -440,12 +440,14 @@ void serial_loop(void* param) {
         serial_reader.periodic();
 
         while (serial_reader.availableMessages()) {
+            atmt::platform_println("Packet Received");
             uint8_t data[atmt::kMaxPacketSize];
             uint8_t length;
             uint8_t sender;
-            serial_reader.getNextMessage(data, length, sender);
+            serial_reader.popNextMessage(data, length, sender);
 
             if (sender == Address_VexBot && length == 1 && data[0] == static_cast<uint8_t>(Serial_GetLargestDetection)) {
+                atmt::platform_println("Update Sent");
                 TagDetection last_tag_detection = last_tags->tags[0]->read();
                 // uint8_t tag_data[sizeof(TagDetection)];
                 // memcpy(tag_data, &last_tag_detection, sizeof(TagDetection));

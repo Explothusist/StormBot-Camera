@@ -8,9 +8,10 @@
 #define CAMERA_2_RIGHT      "02-Right"
 #define CAMERA_3_BACK       "03-Back"
 #define CAMERA_4_LEFT       "04-Left"
-#define CAMERA_5_SCORING    "05-Scoring"
+#define CAMERA_5_SCORING_OVERHEAD    "05-Scoring_Overhead"
+#define CAMERA_6_SCORING_FORWARD    "06-Scoring_Forward"
 
-#define CAMERA_ID           CAMERA_1_FRONT
+#define CAMERA_ID           CAMERA_6_SCORING_FORWARD
 
 #endif
 

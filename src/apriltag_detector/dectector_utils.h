@@ -1,16 +1,17 @@
-#include "../camera_type.h"
-#ifdef CAMERA_APRILTAG_DETECTOR
+// #include "../camera_type.h"
+// #ifdef CAMERA_APRILTAG_DETECTOR
 
 #ifndef APRILTAG_DETECTOR_UTILS_
 #define APRILTAG_DETECTOR_UTILS_
 
+#include "../Automat/automat.h"
 #include "storm_serial_utils.h"
 // WARNING: ANY changes made to this file MUST be duplicated
 //      in the corresponding files in VexBot and EspBot!
 
-#define SERIAL_ADDRESS Address_Camera_1
-#define RX_PIN 16
-#define TX_PIN 17
+#define SERIAL_ADDRESS Address_Camera_5_Scoring
+#define RX_PIN 44
+#define TX_PIN 43
 
 #define EXPECTED_MAX_TAG_COUNT 5
 #define MAX_TAGS_TO_TRACK 1
@@ -45,4 +46,4 @@ struct TagSetTracking {
 
 #endif
 
-#endif
+// #endif
